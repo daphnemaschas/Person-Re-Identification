@@ -29,7 +29,7 @@ reid_project:
       
       train:
         batch_size: 32
-        epochs: 40
+        epochs: 5 # 40
         learning_rate: 0.0003
         scheduler: "cosine"
         optimizer: "adam" 
