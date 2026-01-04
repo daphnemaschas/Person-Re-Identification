@@ -1,0 +1,41 @@
+reid_project:
+
+  general:
+    device: "cpu" # "cuda" if GPU available
+    seed: 42
+    output_dir: "results/exp_resnet50_v1"
+
+  market1501:
+    root_dir: "data/Market-1501-v15.09.15"
+    train_dir: "bounding_box_train"
+    query_dir: "query"
+    gallery_dir: "bounding_box_test"
+    img_size: [256, 128] # H x W (Format vertical Re-ID)
+    num_classes: 751      # Identities in Market-1501
+
+  personal_data:
+    raw_photos_dir: "data/personal/raw"
+    detected_crops_dir: "data/personal/crops"
+    yolo_model: "yolov11n.pt"
+    detection_threshold: 0.5
+
+  models:
+    
+    resnet50:
+      architecture: "resnet50"
+      feature_dim: 2048
+      use_bottleneck: true
+      last_stride: 1
+      
+      train:
+        batch_size: 32
+        epochs: 40
+        learning_rate: 0.0003
+        scheduler: "cosine"
+        optimizer: "adam" 
+      
+      loss:
+        use_triplet: true
+        margin: 0.3
+        weight_xent: 1.0
+        weight_triplet: 1.0
