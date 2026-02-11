@@ -1,55 +1,82 @@
 import torch
 import numpy as np
 from tqdm import tqdm
-from torchmetrics.functional.retrieval import retrieval_precision
 
 
 def extract_features(model, loader, device):
-    """Extract features from a loader and return them as tensors."""
+    """Extract features, PIDs, and CamIDs from a loader."""
     model.eval()
     features, pids, camids = [], [], []
     
     with torch.no_grad():
-        for imgs, labels in tqdm(loader, desc="Extraction"):
+        for imgs, labels, cams in tqdm(loader, desc="Extraction"):
             imgs = imgs.to(device)
-            # En mode eval, notre modèle ResNet50ReID ne renvoie que les features après le BN-Neck
+            # In eval mode, ResNet50 returns features after BN-Neck
             feat = model(imgs)
             
-            # On normalise les features (L2 norm) pour faciliter le calcul de distance
-            feat = torch.nn.functional.normalize(feat, p_2, dim=1)
+            # L2 normalize features for distance computation
+            feat = torch.nn.functional.normalize(feat, p=2, dim=1)
             
             features.append(feat.cpu())
             pids.extend(labels.numpy())
+            camids.extend(cams.numpy())
             
-    return torch.cat(features, 0), np.array(pids)
+    return torch.cat(features, 0), np.array(pids), np.array(camids)
 
-def evaluate(query_feat, query_pids, gallery_feat, gallery_pids):
-    """Calculates Rank-1 and mAP."""
-    # Matrix of distance (Euclidian): Dist(A,B) = sqrt(A^2 + B^2 - 2AB)
+def evaluate(query_feat, query_pids, gallery_feat, gallery_pids,
+             query_camids=None, gallery_camids=None):
+    """
+    Calculates Rank-1 and mAP following the standard Market-1501 protocol.
+    Gallery images with the same PID AND same CamID as the query are excluded
+    from the ranking (they are trivially easy matches from the same camera view).
+    """
     distmat = compute_distmat(query_feat, gallery_feat)
-
     m, n = distmat.shape
-    indices = np.argsort(distmat, axis=1) # Trier par distance
-    matches = (gallery_pids[indices] == query_pids[:, np.newaxis]).astype(np.int32)
-    
-    # Rank-1 : First match
-    rank1 = matches[:, 0].mean()
-    
-    # mAP simplified
+    indices = np.argsort(distmat, axis=1)  # Sort gallery by distance
+
+    all_cmc = []
     aps = []
+
     for i in range(m):
-        # Only when PID is the same
-        relevant_indices = np.where(matches[i] == 1)[0]
-        if len(relevant_indices) == 0: 
-            continue
+        q_pid = query_pids[i]
+        order = indices[i]  # Gallery indices sorted by distance
         
-        ap = 0
-        for j, pos in enumerate(relevant_indices):
-            precision = (j + 1) / (pos + 1)
-            ap += precision
-        aps.append(ap / len(relevant_indices))
-        
-    return rank1, np.mean(aps), distmat
+        # Build a validity mask: exclude gallery items with same PID + same CamID
+        if query_camids is not None and gallery_camids is not None:
+            q_camid = query_camids[i]
+            # Invalid = same person AND same camera (trivial match)
+            remove = (gallery_pids[order] == q_pid) & (gallery_camids[order] == q_camid)
+            keep = ~remove
+        else:
+            keep = np.ones(n, dtype=bool)
+
+        # Matches among the valid gallery entries
+        raw_matches = (gallery_pids[order] == q_pid).astype(np.int32)
+        matches = raw_matches[keep]
+
+        if matches.sum() == 0:
+            continue  # No valid match for this query
+
+        # CMC (Cumulative Matching Characteristics)
+        cmc = matches.cumsum()
+        cmc[cmc > 1] = 1  # Binary: found or not
+        all_cmc.append(cmc[:50])  # Keep top-50 for CMC
+
+        # AP (Average Precision)
+        num_relevant = matches.sum()
+        precision_at_k = matches.cumsum() / (np.arange(len(matches)) + 1)
+        ap = (precision_at_k * matches).sum() / num_relevant
+        aps.append(ap)
+
+    all_cmc = np.array(all_cmc, dtype=np.float32).mean(axis=0)
+    rank1 = all_cmc[0]
+    rank5 = all_cmc[4] if len(all_cmc) > 4 else all_cmc[-1]
+    rank10 = all_cmc[9] if len(all_cmc) > 9 else all_cmc[-1]
+    mAP = np.mean(aps)
+
+    print(f"  Rank-1: {rank1*100:.2f}% | Rank-5: {rank5*100:.2f}% | Rank-10: {rank10*100:.2f}% | mAP: {mAP*100:.2f}%")
+
+    return rank1, mAP, distmat
 
 def compute_distmat(query_feat, gallery_feat):
     """

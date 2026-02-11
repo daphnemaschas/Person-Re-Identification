@@ -25,13 +25,30 @@ class MarketDataset(Dataset):
         self.transform = transform
         
         # Mapping subset to actual folder names
-        sub_folder = "bounding_box_train" if subset == 'train' else "bounding_box_test"
+        subset_map = {
+            'train': 'bounding_box_train',
+            'test': 'bounding_box_test',
+            'query': 'query'
+        }
+        sub_folder = subset_map.get(subset, subset)
         self.img_path = os.path.join(self.root_dir, sub_folder)
         
         self.files = sorted(glob.glob(os.path.join(self.img_path, "*.jpg")))
         
-        self.pids = [int(os.path.basename(f).split('_')[0]) for f in self.files if int(os.path.basename(f).split('_')[0]) > 0]
-        self.files = [f for f in self.files if int(os.path.basename(f).split('_')[0]) > 0]
+        # Filter out junk images (pid <= 0) and extract PIDs + CamIDs
+        valid_files, pids, camids = [], [], []
+        for f in self.files:
+            name = os.path.basename(f)
+            pid = int(name.split('_')[0])
+            if pid > 0:
+                camid = int(name.split('_')[1][1])  # e.g. 'c1s1_...' -> 1
+                valid_files.append(f)
+                pids.append(pid)
+                camids.append(camid)
+        
+        self.files = valid_files
+        self.pids = pids
+        self.camids = camids
         
         # Re-map PIDs to continuous range [0, num_classes-1] for Cross-Entropy Loss
         unique_pids = sorted(list(set(self.pids)))
@@ -50,6 +67,7 @@ class MarketDataset(Dataset):
         """
         f = self.files[index]
         pid = self.pids[index]
+        camid = self.camids[index]
         label = self.pid_map[pid]
         
         # Use PIL for compatibility with torchvision transforms
@@ -57,4 +75,4 @@ class MarketDataset(Dataset):
         if self.transform:
             img = self.transform(img)
             
-        return img, label
+        return img, label, camid

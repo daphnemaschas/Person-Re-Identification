@@ -10,7 +10,7 @@ def train_one_epoch(model, loader, optimizer, criterion_xent, criterion_triplet,
     running_loss = 0.0
     
     pbar = tqdm(loader, desc="Training")
-    for images, labels in pbar:
+    for images, labels, _ in pbar:  # _ = camids (unused in training)
         images, labels = images.to(device), labels.to(device)
         
         optimizer.zero_grad()
@@ -53,6 +53,7 @@ def train_model(model, train_loader, optimizer, scheduler, criterion_xent, crite
     """
     # Create directory for saving models
     os.makedirs(output_dir, exist_ok=True)
+    history = {'epoch': [], 'loss': [], 'lr': []}
     
     for epoch in range(num_epochs):
         model.train()
@@ -61,7 +62,7 @@ def train_model(model, train_loader, optimizer, scheduler, criterion_xent, crite
         # tqdm bar for the current epoch
         pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs}")
         
-        for images, labels in pbar:
+        for images, labels, _ in pbar:  # _ = camids (unused in training)
             images, labels = images.to(device), labels.to(device)
             
             optimizer.zero_grad()
@@ -86,6 +87,11 @@ def train_model(model, train_loader, optimizer, scheduler, criterion_xent, crite
                 'loss': f"{running_loss / (pbar.n + 1):.4f}",
                 'lr': f"{optimizer.param_groups[0]['lr']:.6f}"
             })
+        
+        epoch_loss = running_loss / len(train_loader)
+        history['epoch'].append(epoch + 1)
+        history['loss'].append(epoch_loss)
+        history['lr'].append(optimizer.param_groups[0]['lr'])
             
         # Update learning rate
         scheduler.step()
@@ -95,3 +101,4 @@ def train_model(model, train_loader, optimizer, scheduler, criterion_xent, crite
         torch.save(model.state_dict(), save_path)
         
     print(f"\nTraining finished! Model saved in {output_dir}")
+    return history

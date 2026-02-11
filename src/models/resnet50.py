@@ -48,6 +48,48 @@ class ResNet50(nn.Module):
             nn.init.constant_(m.weight, 1.0)
             nn.init.constant_(m.bias, 0.0)
 
+    def freeze_backbone(self, mode='full'):
+        """
+        Control which parts of the backbone are frozen for ablation study.
+        
+        Args:
+            mode (str): Freezing strategy.
+                - 'feature_extraction': Freeze entire backbone, train only BN-Neck + classifier.
+                - 'partial': Freeze early layers (conv1 → layer2), train layer3 + layer4 + head.
+                - 'full': Unfreeze everything (full fine-tuning).
+        """
+        if mode == 'feature_extraction':
+            for param in self.backbone.parameters():
+                param.requires_grad = False
+                
+        elif mode == 'partial':
+            # backbone is nn.Sequential of resnet children (minus last FC):
+            # [0]=conv1, [1]=bn1, [2]=relu, [3]=maxpool, [4]=layer1, [5]=layer2, [6]=layer3, [7]=layer4, [8]=avgpool
+            for i, child in enumerate(self.backbone.children()):
+                if i <= 5:  # Freeze conv1, bn1, relu, maxpool, layer1, layer2
+                    for param in child.parameters():
+                        param.requires_grad = False
+                else:  # Unfreeze layer3, layer4, avgpool
+                    for param in child.parameters():
+                        param.requires_grad = True
+                        
+        elif mode == 'full':
+            for param in self.backbone.parameters():
+                param.requires_grad = True
+        else:
+            raise ValueError(f"Unknown freeze mode: {mode}")
+        
+        # BN-Neck and classifier are always trainable
+        for param in self.bottleneck.parameters():
+            param.requires_grad = True
+        for param in self.classifier.parameters():
+            param.requires_grad = True
+        
+        # Report trainable params
+        trainable = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        total = sum(p.numel() for p in self.parameters())
+        print(f"Freeze mode: '{mode}' | Trainable: {trainable:,} / {total:,} params ({100*trainable/total:.1f}%)")
+
     def forward(self, x):
         """
         Forward pass.
