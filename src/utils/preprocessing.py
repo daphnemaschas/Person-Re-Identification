@@ -91,28 +91,38 @@ def get_augmentation_pipeline(aug_type='none'):
     Returns:
         torchvision.transforms.Compose: Transform pipeline.
     """
-    base_transforms = [
-        transforms.Resize((256, 128)),
+    target_size = (256, 128)
+
+    final_steps = [
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ]
     
     if aug_type == 'standard':
         return transforms.Compose([
-            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.Resize(target_size),
             transforms.Pad(10),
-            transforms.RandomCrop((256, 128)),
-            *base_transforms
+            transforms.RandomCrop(target_size),
+            transforms.RandomHorizontalFlip(p=0.5),
+            *final_steps
         ])
     elif aug_type == 'color_jitter':
         return transforms.Compose([
+            transforms.Resize(target_size),
             transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
-            *base_transforms
+            *final_steps
         ])
     elif aug_type == 'random_erasing':
         return transforms.Compose([
-            *base_transforms,
+            transforms.Resize(target_size),
+            transforms.Pad(10),
+            transforms.RandomCrop(target_size),
+            transforms.RandomHorizontalFlip(p=0.5),
+            *final_steps,
             transforms.RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3))
         ])
     
-    return transforms.Compose(base_transforms)
+    return transforms.Compose([
+        transforms.Resize(target_size),
+        *final_steps
+    ])
