@@ -83,7 +83,7 @@ def compute_distmat(query_feat, gallery_feat):
     Computes Euclidean distance matrix between query and gallery features.
     distmat[i, j] = sqrt( ||q_i||^2 + ||g_j||^2 - 2 * q_i.T * g_j )
     """
-    m, n = query_feat.size(0), gallery_feat.size(0)
+    m, n = query_feat.shape[0], gallery_feat.shape[0]
     
     # a^2 + b^2
     distmat = torch.pow(query_feat, 2).sum(dim=1, keepdim=True).expand(m, n) + \
@@ -92,5 +92,4 @@ def compute_distmat(query_feat, gallery_feat):
     # - 2ab
     distmat.addmm_(query_feat, gallery_feat.t(), beta=1, alpha=-2)
     
-    # We clamp to 0 to avoid negative micro-values due to imprecision
     return distmat.clamp(min=0).sqrt().cpu().numpy()
