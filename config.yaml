@@ -16,7 +16,7 @@ reid_project:
   personal_data:
     raw_photos_dir: "data/personal/raw"
     detected_crops_dir: "data/personal/crops"
-    yolo_model: "yolov11n.pt"
+    yolo_model: "yolov8n.pt"
     detection_threshold: 0.5
 
   models:
