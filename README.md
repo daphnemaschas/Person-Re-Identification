@@ -184,19 +184,6 @@ Compare 3 backbone freezing strategies on ResNet-50.
 
 ---
 
-## Suggested Team Assignment
-
-> Adjust based on actual team size. Dependencies: **WP3 → WP6** (sequential). All others can run in parallel.
-
-| Member | Work Packages | Primary Focus |
-|---|---|---|
-| **Member A** | WP1 (preprocessing) + WP2 (classical features) | 🔬 Visual Recognition |
-| **Member B** | WP3 (YOLO + personal dataset) + WP7 (clustering) | 🔬 Visual Recognition |
-| **Member C** | WP5 (ViT architecture) + WP4 (ablation) | 🧠 Deep Learning |
-| **Member D** | WP6 (domain adaptation) + Report & figures | 🔬🧠 Both |
-
----
-
 ## Course Coverage Summary
 
 | Visual Recognition Topic | Covered in |
