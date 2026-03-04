@@ -23,7 +23,7 @@ class ReIDDatasetExtractor:
             full_config = yaml.safe_load(f)["reid_project"]
         
         self.config = full_config["personal_data"]
-        # On récupère la taille cible depuis market1501 pour le ratio
+
         img_size = full_config["market1501"]["img_size"]
         self.target_ratio = img_size[0] / img_size[1]
         
