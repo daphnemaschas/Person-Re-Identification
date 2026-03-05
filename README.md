@@ -11,7 +11,7 @@ A person re-identification (Re-ID) system designed to link images of an individu
 | Dataset | Description | Usage |
 |---|---|---|
 | [Market-1501](https://www.kaggle.com/datasets/pengcw1/market-1501) | 32,668 images, 1,501 identities, 6 cameras | Supervised training & academic benchmark |
-| Personal Dataset | Smartphone photos, raw scenes, 10 identities, 3 cameras| Domain adaptation & "in-the-wild" evaluation |
+| Personal Dataset | Smartphone photos, raw scenes, 10 identities, 3 cameras| Domain adaptation & in-the-wild evaluation, crops made using yolov8n |
 
 ---
 
