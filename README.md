@@ -38,8 +38,9 @@ A person re-identification (Re-ID) system designed to link images of an individu
 │   ├── models/
 │   │   ├── resnet50.py                  # ResNet-50 + BN-Neck for Re-ID
 │   │   └── vit.py                       # WP5 — ViT-Base for Re-ID
-│   ├── detection/
-│   │   └── yolo_pipeline.py             # WP3 — YOLO person detection
+│   ├── preprocessing/
+│   │   ├── extract_reid_dataset.py      # WP3 — YOLO person detection
+|   |   └── split_personnal_dataset.py   # Splits crops into folders
 │   └── utils/
 │       ├── evaluator.py                 # Rank-1, mAP, CMC evaluation
 │       ├── losses.py                    # Triplet loss with hard mining
