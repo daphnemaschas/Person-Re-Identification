@@ -110,14 +110,14 @@ Build the end-to-end pipeline from raw smartphone photos to labeled Re-ID crops.
 
 | # | Sub-task | Description |
 |---|---|---|
-| 3.1 | **YOLO detection pipeline** | Implement `src/detection/yolo_pipeline.py`: load YOLOv11, detect persons in raw photos, extract crops with confidence scores. |
+| 3.1 | **YOLO detection pipeline** | Implement `src/preprocessing/extract_reid_dataset.py`: load YOLOv11, detect persons in raw photos, extract crops with confidence scores. |
 | 3.2 | **Detection edge cases** | Handle multiple persons per image, overlapping bboxes (NMS), minimum size filtering, confidence thresholds. |
 | 3.3 | **Photo collection & annotation** | Collect smartphone photos from team members. Manually annotate identity labels on the crops. |
 | 3.4 | **Dataset split** | Divide into `personal_part1` (fine-tuning) and `personal_part2` (testing) with identity-disjoint or proportional splits. |
 | 3.5 | **PersonalDataset class** | Create `src/dataloaders/personal_dataset.py` with same API as `MarketDataset`. |
 | 3.6 | **EDA** | Distribution analysis of the personal dataset (identities, cameras, image quality). |
 
-**Deliverable**: `notebooks/detection_pipeline.ipynb` + `src/detection/yolo_pipeline.py` + `src/dataloaders/personal_dataset.py`
+**Deliverable**: `src/preprocessing/extract_reid_dataset.py` + `src/dataloaders/personal_dataset.py`
 
 ---
 
