@@ -38,8 +38,9 @@ A person re-identification (Re-ID) system designed to link images of an individu
 │   ├── models/
 │   │   ├── resnet50.py                  # ResNet-50 + BN-Neck for Re-ID
 │   │   └── vit.py                       # WP5 — ViT-Base for Re-ID
-│   ├── detection/
-│   │   └── yolo_pipeline.py             # WP3 — YOLO person detection
+│   ├── preprocessing/
+│   │   ├── extract_reid_dataset.py      # WP3 — YOLO person detection
+|   |   └── split_personnal_dataset.py   # Splits crops into folders
 │   └── utils/
 │       ├── evaluator.py                 # Rank-1, mAP, CMC evaluation
 │       ├── losses.py                    # Triplet loss with hard mining
@@ -109,14 +110,14 @@ Build the end-to-end pipeline from raw smartphone photos to labeled Re-ID crops.
 
 | # | Sub-task | Description |
 |---|---|---|
-| 3.1 | **YOLO detection pipeline** | Implement `src/detection/yolo_pipeline.py`: load YOLOv11, detect persons in raw photos, extract crops with confidence scores. |
+| 3.1 | **YOLO detection pipeline** | Implement `src/preprocessing/extract_reid_dataset.py`: load YOLOv11, detect persons in raw photos, extract crops with confidence scores. |
 | 3.2 | **Detection edge cases** | Handle multiple persons per image, overlapping bboxes (NMS), minimum size filtering, confidence thresholds. |
 | 3.3 | **Photo collection & annotation** | Collect smartphone photos from team members. Manually annotate identity labels on the crops. |
 | 3.4 | **Dataset split** | Divide into `personal_part1` (fine-tuning) and `personal_part2` (testing) with identity-disjoint or proportional splits. |
 | 3.5 | **PersonalDataset class** | Create `src/dataloaders/personal_dataset.py` with same API as `MarketDataset`. |
 | 3.6 | **EDA** | Distribution analysis of the personal dataset (identities, cameras, image quality). |
 
-**Deliverable**: `notebooks/detection_pipeline.ipynb` + `src/detection/yolo_pipeline.py` + `src/dataloaders/personal_dataset.py`
+**Deliverable**: `src/preprocessing/extract_reid_dataset.py` + `src/dataloaders/personal_dataset.py`
 
 ---
 
@@ -219,6 +220,14 @@ pip install kaggle
 kaggle datasets download -d pengcw1/market-1501 -p data/
 unzip data/market-1501.zip -d data/
 
-# 3. Run the baseline
+# 3. Download the personal dataset from the drive and unzip it
+unzip personal.zip -d data/
+
+# 4. Optional : Download and unzip the results folder to have the trained models ready
+unzip results.zip
+
+# 5. Run the baseline
 # Open notebooks/market_1501_resnet50.ipynb and run all cells
 ```
+
+Note : all the training has been done on a RTX 5060 Ti instance,with a Xeon E5-2696 v4 CPU.

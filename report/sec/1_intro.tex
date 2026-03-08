@@ -1,0 +1,58 @@
+\section{Introduction}
+\label{sec:intro}
+
+La ré-identification de personnes (Re-ID) est la t\^{a}che de retrouver une personne d'intérêt dans un large ensemble d'images provenant de caméras non articulées, à des moments et des points de vue différents. Dans un système de surveillance multi-caméras, une même personne peut apparaître très différemment selon l'angle de prise de vue, les conditions d'éclairage ou son habillement : construire un descripteur robuste à ces variations est l'enjeu central du Re-ID.
+
+Les applications sont nombreuses : sécurité et surveillance en espace public, assistance aux personnes vulnérables, analyse du flux de visiteurs dans le commerce de détail, ou encore investigations médico-légales. Ces contextes partagent une contrainte commune : le système doit fonctionner sous de fortes variations intra-classe (même personne vue différemment) tout en séparant clairement les classes inter-identités.
+
+\paragraph{Défis.}
+Les principaux obstacles à un Re-ID fiable sont : (i) les variations d'illumination entre intérieur et extérieur ; (ii) les occultations partielles par des obstacles ou d'autres personnes ; (iii) les changements de pose et de point de vue ; (iv) la variabilité intra-classe (même vêtement sous éclairages différents), et (v) le gap de domaine entre jeu de données d'entraînement (Market-1501) et scène réelle.
+
+\paragraph{Contributions.}
+Ce rapport présente sept contributions expérimentales (\textbf{WP1--WP7}) couvrant la chaîne complète :
+\begin{enumerate}
+\item \textbf{WP1} : Impact systématique du prétraitement (résolution, espace de couleur, filtres, augmentation) sur les performances de Re-ID.
+\item \textbf{WP2} : Comparaison rigoureuse des descripteurs classiques (HOG, histogramme de couleur, SIFT) face aux embeddings profonds avec et sans re-ranking.
+\item \textbf{WP3} : Constitution d'un jeu de données personnel via un pipeline de détection automatique YOLOv8.
+\item \textbf{WP4} : Ablation sur trois stratégies de gel du réseau (feature extraction, fine-tuning partiel, fine-tuning complet).
+\item \textbf{WP5} : Comparaison CNN/Transformer au sens du Rank-1, mAP, co\^{u}t paramétrique et latence d'inférence.
+\item \textbf{WP6} : Adaptation de domaine de Market-1501 vers le dataset personnel par zero-shot et transfer learning.
+\item \textbf{WP7} : Indexation automatique d'albums par clustering DBSCAN sur les embeddings appris.
+\end{enumerate}
+
+\section{Définition du problème}
+\label{sec:problem}
+
+\paragraph{Notation.}
+Soit $\mathcal{G} = \{(\mathbf{x}_i, y_i)\}_{i=1}^{N_G}$ la galerie d'images annotées avec des identités $y_i \in \{1, \ldots, P\}$, et soit $\mathbf{q}$ une image requête d'identité $y_q$ a priori inconnue dans $\mathcal{G}$. L'objectif est d'ordonner les images de $\mathcal{G}$ par ordre croissant de distance à $\mathbf{q}$ :
+\begin{equation}
+\pi^* = \operatorname{argsort}_{i=1}^{N_G} \; d\!\left(f_\theta(\mathbf{q}),\, f_\theta(\mathbf{x}_i)\right)
+\label{eq:ranking}
+\end{equation}
+o\`{u} $f_\theta : \mathbb{R}^{H \times W \times 3} \to \mathbb{R}^d$ est le réseau extracteur d'embeddings et $d(\mathbf{a}, \mathbf{b}) = \|\mathbf{a} - \mathbf{b}\|_2$ la distance euclidienne. Conformément au protocole standard \cite{zheng2015scalable}, les paires (requête, galerie) provenant du même angle de caméra et de la même séquence sont exclues de l'évaluation.
+
+\paragraph{Fonction objectif.}
+Le réseau est optimisé par minimisation d'une perte combinée :
+\begin{equation}
+\mathcal{L} = \mathcal{L}_{\text{CE}}(f_\theta) + \mathcal{L}_{\text{tri}}(f_\theta)
+\label{eq:loss_total}
+\end{equation}
+La perte identitaire $\mathcal{L}_{\text{CE}}$ est une entropie croisée softmax sur les $P$ classes d'identité. La perte triplet avec minage difficile (\textit{hard mining}) \cite{hermans2017defense} est calculée pour chaque ancre $\mathbf{x}_a$ dans le batch :
+\begin{equation}
+\begin{split}
+\mathcal{L}_{\text{tri}} &= \frac{1}{B}\!\sum_{a=1}^{B}\!\bigg[\,m + \underbrace{\max_{j:\,y_j = y_a}\!d(f(\mathbf{x}_a), f(\mathbf{x}_j))}_{\text{positif le plus difficile}} \\
+&\quad - \underbrace{\min_{k:\,y_k \neq y_a}\!d(f(\mathbf{x}_a), f(\mathbf{x}_k))}_{\text{négatif le plus difficile}}\,\bigg]_+
+\end{split}
+\label{eq:triplet}
+\end{equation}
+avec marge $m = 0{,}3$ et $[\,\cdot\,]_+ = \max(0, \cdot)$.
+
+\paragraph{Métriques d'évaluation.}
+La précision \textbf{Rank-$k$} (CMC\,@$k$) mesure la fraction des requêtes pour lesquelles au moins une correspondance correcte figure dans les $k$ premières propositions. La \textbf{mAP} (\textit{mean Average Precision}) évalue la qualité globale du classement en agrégeant la précision à chaque rang de récupération :
+\begin{equation}
+\text{mAP} = \frac{1}{|\mathcal{Q}|}\sum_{\mathbf{q} \in \mathcal{Q}} \frac{\displaystyle\sum_{k=1}^{N_G} P(k)\cdot\mathbf{1}[y_{\pi(k)} = y_q]}{|\{i : y_i = y_q\}|}
+\label{eq:map}
+\end{equation}
+La mAP est plus discriminante que le Rank-1 lorsque plusieurs images de la même personne sont présentes dans la galerie.
+
+%-------------------------------------------------------------------------
