@@ -219,6 +219,14 @@ pip install kaggle
 kaggle datasets download -d pengcw1/market-1501 -p data/
 unzip data/market-1501.zip -d data/
 
-# 3. Run the baseline
+# 3. Download the personal dataset from the drive and unzip it
+unzip personal.zip -d data/
+
+# 4. Optional : Download and unzip the results folder to have the trained models ready
+unzip results.zip
+
+# 5. Run the baseline
 # Open notebooks/market_1501_resnet50.ipynb and run all cells
 ```
+
+Note : all the training has been done on a RTX 5060 Ti instance,with a Xeon E5-2696 v4 CPU.

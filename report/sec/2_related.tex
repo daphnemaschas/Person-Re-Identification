@@ -1,0 +1,23 @@
+\section{Travaux connexes}
+\label{sec:related}
+
+\paragraph{Jeux de données de référence.}
+Market-1501~\cite{zheng2015scalable} est le benchmark standard de Re-ID en milieu contrôl é: 32,668 images de 1,501 identités captur ées par 6 caméras sur le campus de l'Université Tsinghua. Sa pertinence réside dans la diversité des points de vue et dans un protocole d'évaluation bien défini (exclusion des paires même caméra, CMC, mAP). Ce benchmark reste la référence pour la comparaison des approches modernes~\cite{ye2021deep}.
+
+\paragraph{Descripteurs classiques.}
+Avant l'ère de l'apprentissage profond, les approches Re-ID s'appuyaient sur des descripteurs à la main. Les histogrammes de gradients orientés (HOG)~\cite{dalal2005histograms} et les \textit{Scale-Invariant Feature Transform} (SIFT)~\cite{lowe2004distinctive} capturent respectivement la texture et les points saillants locaux. Ces descripteurs souffrent de la sensibilité aux changements d'éclairage et de point de vue, ce qui limite leurs performances en Re-ID.
+
+\paragraph{Apprentissage profond pour le Re-ID.}
+Depuis l'avènement des réseaux de neurones convolutifs, les approches profondes dominent le domaine~\cite{ye2021deep}. La \og{}Bag of Tricks\fg{} (BoT)~\cite{luo2019bag} a établi une base solide en introduisant le \textit{BN-Neck} (BatchNorm entre l'extracteur et le classifieur), l'astuce \textit{last\_stride=1} pour conserver la résolution spatiale, et la perte triplet combinée à l'entropie croisée~-- notre architecture s'en inspire directement.
+
+\paragraph{Transformers pour le Re-ID.}
+TransReID~\cite{he2021transreid} est l'une des premières approches à adapter les Vision Transformers (ViT)~\cite{dosovitskiy2021image} au Re-ID. En exploitant le mécanisme d'attention globale, ces modèles capturent des dépendances longue portée que les CNN peinent à modéliser, au prix d'un co\^{u}t de calcul plus élevé.
+
+\paragraph{Apprentissage de métriques.}
+La perte triplet avec minage difficile, formalisée par Hermans \textit{et al.}~\cite{hermans2017defense}, est devenue le standard pour l'apprentissage de représentations discriminantes en Re-ID. Elle force le réseau à rapprocher les exemples de même identité et à séparer les négatifs les plus proches.
+
+\paragraph{Re-ranking.}
+Zhong \textit{et al.}~\cite{zhong2017re} proposent une procédure de re-classement basée sur l'encodage k-réciproque, qui raffine la matrice de distance initiale en tenant compte des voisins mutuels~-- une technique post-traitement efficace qui peut gagner plusieurs points de mAP sans modifier le modèle.
+
+\paragraph{Clustering sans supervision.}
+DBSCAN~\cite{ester1996density} est un algorithme de clustering basé sur la densité qui ne nécessite pas de préciser le nombre de clusters \textit{a~priori}~-- un avantage considérable pour l'indexation d'albums o\`{u} le nombre d'identités est inconnu.

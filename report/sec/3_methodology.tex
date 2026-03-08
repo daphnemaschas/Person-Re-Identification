@@ -1,0 +1,85 @@
+\section{M\'{e}thodologie}
+\label{sec:methodology}
+
+\subsection{Vue d'ensemble du pipeline}
+
+Notre pipeline complet comprend quatre \'{e}tapes~: (1)~constitution du jeu de donn\'{e}es (d\'{e}tection YOLO pour le dataset personnel), (2)~pr\'{e}traitement et augmentation, (3)~extraction d'embeddings par un r\'{e}seau Re-ID, et (4)~\'{e}valuation par CMC/mAP avec re-ranking optionnel. Pour le clustering (WP7), l'\'{e}tape~4 est remplac\'{e}e par un regroupement DBSCAN.
+
+\subsection{Jeux de donn\'{e}es}
+
+\paragraph{Market-1501.}
+Market-1501~\cite{zheng2015scalable} comprend 32\,668 images de 1\,501 identit\'{e}s captur\'{e}es par 6 cam\'{e}ras. La partition standard d\'{e}finit 12\,936 images d'entra\^{\i}nement (751~identit\'{e}s), 3\,368 requ\^{e}tes et 13\,115 images de galerie (750~identit\'{e}s). La r\'{e}solution des images varie selon la cam\'{e}ra~; toutes sont redimensionn\'{e}es \`{a} $256 \times 128$~px.
+
+\paragraph{Dataset personnel (WP3).}
+Pour \'{e}tudier l'adaptation de domaine, nous avons constitu\'{e} un jeu de donn\'{e}es personnel de 262~images captur\'{e}es sur le campus de CentraleSup\'{e}lec. La d\'{e}tection automatique des personnes est r\'{e}alis\'{e}e par \textbf{YOLOv8n}~\cite{ultralytics2023}, un d\'{e}tecteur l\'{e}ger (\textit{nano}) de la famille Ultralytics YOLO, qui recadre automatiquement chaque personne d\'{e}tect\'{e}e. Les annotations d'identit\'{e} (pour l'\'{e}valuation) ont \'{e}t\'{e} r\'{e}alis\'{e}es manuellement. Le dataset est divis\'{e} en 131~images d'entra\^{\i}nement et 131~images d'\'{e}valuation (requ\^{e}tes + galerie).
+
+\subsection{Pr\'{e}traitement et augmentation}
+
+Toutes les images sont redimensionn\'{e}es \`{a} $256 \times 128$~px (ou $224 \times 224$ pour ViT) par interpolation bicubique. Lors de l'entra\^{\i}nement, les augmentations suivantes sont appliqu\'{e}es~: retournement horizontal al\'{e}atoire ($p=0{,}5$), jitter de couleur (\textit{brightness}, \textit{contrast}, \textit{saturation}, \textit{hue}), et \textit{Random Erasing}~-- une occlusion synth\'{e}tique rectangulaire ($p=0{,}5$). \`{A} l'\'{e}valuation, seul le redimensionnement et la normalisation ImageNet ($\mu=(0{,}485,\, 0{,}456,\, 0{,}406)$, $\sigma=(0{,}229,\, 0{,}224,\, 0{,}225)$) sont appliqu\'{e}s.
+
+\subsection{Architecture ResNet-50 avec BN-Neck}
+
+Nous utilisons un ResNet-50~\cite{he2016deep} pr\'{e}-entra\^{\i}n\'{e} sur ImageNet, modifi\'{e} conformément \`{a} la baseline BoT~\cite{luo2019bag}~:
+
+\begin{itemize}
+\item \textbf{Last stride = 1}~: le stride de la derni\`{e}re couche convolutive (\texttt{layer4}) est modifi\'{e} de 2 \`{a} 1, doublant la r\'{e}solution des feature maps ($14 \times 7$ au lieu de $7 \times 4$) et conservant plus d'information spatiale.
+\item \textbf{BN-Neck}~: apres le pooling global, une couche BatchNorm1d(2048) sans biais produit le vecteur de caract\'{e}ristiques normalis\'{e} $\mathbf{z} \in \mathbb{R}^{2048}$, utilis\'{e} pour le calcul des distances \`{a} l'inf\'{e}rence. Le classifieur lin\'{e}aire (sans biais, 2048~$\to$~751~classes) op\`{e}re sur $\mathbf{z}$ pendant l'entra\^{\i}nement.
+\end{itemize}
+
+Le mod\`{e}le comporte 25,1M param\`{e}tres au total, avec une dimension d'embedding de 2048.
+
+\subsection{Architecture ViT-Base/16 avec BN-Neck}
+
+Nous utilisons ViT-Base/16~\cite{dosovitskiy2021image} pr\'{e}-entra\^{\i}n\'{e} sur ImageNet~: l'image $224 \times 224$ est d\'{e}coup\'{e}e en $196$ patchs de $16 \times 16$~px. Le token \texttt{[CLS]} de dimension 768 est extrait comme repr\'{e}sentation globale de l'image~; le m\^{e}me BN-Neck que ResNet-50 lui est appliqu\'{e}. Le mod\`{e}le comporte 86,4M param\`{e}tres (3,45$\times$ plus que ResNet-50).
+
+\subsection{Strat\'{e}gies de gel (WP4)}
+
+Pour l'ablation (WP4), trois strat\'{e}gies de fine-tuning sont \'{e}tudi\'{e}es sur ResNet-50~:
+
+\begin{itemize}
+\item \textbf{Feature Extraction}~: backbone enti\`{e}rement gel\'{e}, seuls BN-Neck et classifieur sont entra\^{\i}nables (1,54M param., 6,2\,\%).
+\item \textbf{Partial Fine-Tuning}~: \texttt{conv1}, \texttt{layer1} et \texttt{layer2} gel\'{e}s~; \texttt{layer3}, \texttt{layer4} et t\^{e}te entra\^{\i}nables (23,6M param., 94,2\,\%).
+\item \textbf{Full Fine-Tuning}~: tout le r\'{e}seau entra\^{\i}nable (25,0M param., 100\,\%).
+\end{itemize}
+
+\subsection{Protocole d'entra\^{\i}nement}
+
+Les deux mod\`{e}les sont entra\^{\i}n\'{e}s avec les hyperparamètres du tableau~\ref{tab:training_config}. L'optimiseur Adam est coupl\'{e} \`{a} un schedule cosinus~; la \textit{mixed~precision} (AMP) r\'{e}duit l'empreinte m\'{e}moire et acc\'{e}l\`{e}re l'entra\^{\i}nement. La graine al\'{e}atoire est fix\'{e}e \`{a} 42 pour la reproductibilit\'{e}.
+
+\begin{table}[t]
+\centering
+\caption{Hyperparam\`{e}tres d'entra\^{\i}nement.}
+\label{tab:training_config}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lcc}
+\toprule
+Param\`{e}tre & ResNet-50 & ViT-Base/16 \\
+\midrule
+Taux d'apprentissage & $3 \times 10^{-4}$ & $1 \times 10^{-4}$ \\
+Batch size & 32 & 24 \\
+Optimiseur & Adam & Adam \\
+Schedule & Cosinus & Cosinus \\
+\'{E}poques & 40 & 40 \\
+R\'{e}solution input & $256 \times 128$ & $224 \times 224$ \\
+Mixed precision & Oui & Oui \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\subsection{Re-ranking k-r\'{e}ciproque}
+
+\`{A} l'inf\'{e}rence, nous appliquons optionnellement le re-ranking de Zhong \textit{et al.}~\cite{zhong2017re}~: la matrice de distance cosinus est r\'{e}vis\'{e}e en tenant compte des voisins k-r\'{e}ciproques ($k_1=20$, $k_2=6$, $\lambda=0{,}3$). Cette proc\'{e}dure am\'{e}liore significativement la mAP en corrigeant les erreurs de classement local.
+
+\subsection{Descripteurs classiques (WP2)}
+
+Pour la comparaison, trois descripteurs classiques sont utilis\'{e}s~:
+\begin{itemize}
+\item \textbf{HOG}~\cite{dalal2005histograms}~: histogramme de gradients orient\'{e}s sur la totalit\'{e} de l'image (cellules $8 \times 8$, blocs $16 \times 16$).
+\item \textbf{Histogramme de couleur}~: histogramme RGB \`{a} 3~canaux, 64~bacs par canal.
+\item \textbf{SIFT}~\cite{lowe2004distinctive}~: agr\'{e}gation de descripteurs locaux de 128~dimensions. Par contrainte de calcul, l'\'{e}valuation SIFT est limit\'{e}e \`{a} $n=200$ requ\^{e}tes et $n=1\,000$ images de galerie (sous-ensemble al\'{e}atoire).
+\end{itemize}
+Le classement est r\'{e}alis\'{e} par recherche exhaustive par distance L2.
+
+\subsection{Clustering DBSCAN (WP7)}
+
+Les embeddings extraits par ResNet-50 sont normalis\'{e}s puis soumis \`{a} DBSCAN~\cite{ester1996density} avec distance cosinus. Le param\`{e}tre $\varepsilon$ (seuil de densit\'{e}) est le seul hyperparamètre cl\'{e}~; nous en \'{e}tudions la sensibilit\'{e} systematiquement. Le clustering est \'{e}valu\'{e} par~: \textbf{puret\'{e}} (proportion d'images correctement assign\'{e}es \`{a} la classe majoritaire de chaque cluster), \textbf{NMI} (\textit{Normalized Mutual Information}), et \textbf{ARI} (\textit{Adjusted Rand Index}).

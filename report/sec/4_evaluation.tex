@@ -1,0 +1,170 @@
+\section{\'{E}valuation}
+\label{sec:evaluation}
+
+\subsection{WP1~: Impact du pr\'{e}traitement}
+
+\paragraph{Analyse qualitative.}
+L'\'{e}tude de l'impact des espaces de couleur (RGB, HSV, LAB), des filtres de lissage (Gaussien, M\'{e}dian, Bilat\'{e}ral, $k=5$) et des strat\'{e}gies d'augmentation (color jitter, Random Erasing) est r\'{e}alis\'{e}e qualitativement. Ces exp\'{e}riences montrent visuellement que les filtres de lissage pr\'{e}servent la structure g\'{e}n\'{e}rale de la personne, et que l'augmentation par Random Erasing simule efficacement des occultations partielles.
+
+\paragraph{Benchmark de r\'{e}solution.}
+Seule l'exp\'{e}rience quantitative de ce WP concerne l'impact de la r\'{e}solution d'entr\'{e}e (tableau~\ref{tab:resolution}). Le mod\`{e}le de r\'{e}f\'{e}rence est ResNet-50 entra\^{\i}n\'{e} \`{a} $256 \times 128$.
+
+\begin{table}[t]
+\centering
+\caption{Impact de la r\'{e}solution d'entr\'{e}e sur les performances Re-ID (ResNet-50, Market-1501).}
+\label{tab:resolution}
+\begin{tabular}{lcccc}
+\toprule
+R\'{e}solution & Rank-1 & Rank-5 & Rank-10 & mAP \\
+\midrule
+$256\times128$ (base) & 77,40 & 90,11 & 93,38 & 54,47 \\
+$128\times64$         & 77,40 & 90,11 & 93,38 & 54,47 \\
+$64\times32$          & 65,02 & 82,57 & 87,77 & 44,27 \\
+$32\times16$          & 32,57 & 52,35 & 60,57 & 21,38 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La r\'{e}solution de $256 \times 128$ et $128 \times 64$ donnent des r\'{e}sultats identiques, sugg\'{e}rant que le r\'{e}seau est robuste \`{a} un facteur de r\'{e}duction~2. Une d\'{e}gradation significative n'appara\^{\i}t qu'\`{a} $64 \times 32$ (Rank-1 $-12,4$~pp), et est catastrophique \`{a} $32 \times 16$ ($-44,8$~pp), o\`{u} les d\'{e}tails discriminants sont irr\'{e}m\'{e}diablement perdus.
+
+\subsection{WP2~: Descripteurs classiques vs. profonds}
+
+Le tableau~\ref{tab:classical_vs_deep} compare les descripteurs classiques \`{a} notre mod\`{e}le profond de r\'{e}f\'{e}rence.
+
+\begin{table}[t]
+\centering
+\caption{Comparaison des descripteurs classiques et profonds sur Market-1501.}
+\label{tab:classical_vs_deep}
+\resizebox{\columnwidth}{!}{
+\begin{tabular}{lcccc}
+\toprule
+Descripteur & Rank-1 & Rank-5 & Rank-10 & mAP \\
+\midrule
+HOG~\cite{dalal2005histograms}                 & 0,68  & 2,46  & 3,89  & 0,38 \\
+Hist. couleur                                  & 1,87  & 4,33  & 7,07  & 0,69 \\
+SIFT$^\dagger$~\cite{lowe2004distinctive}      & 0,50  & 7,50  & 14,50 & 2,51 \\
+\midrule
+ResNet-50 (profond)                            & 77,40 & 90,56 & 93,62 & 55,58 \\
+ResNet-50 + Re-ranking~\cite{zhong2017re}      & \textbf{80,29} & 91,03 & 93,82 & \textbf{65,04} \\
+\bottomrule
+\end{tabular}
+}
+\vspace{1pt}
+\footnotesize{$^\dagger$ \'{E}valu\'{e} sur un sous-ensemble ($n{=}200$ requ\^{e}tes, $n{=}1\,000$ galerie).}
+\end{table}
+
+L'\'{e}cart entre descripteurs classiques et profonds est drastique: le meilleur descripteur classique (histogramme de couleur) ne d\'{e}passe pas 1,87\,\% en Rank-1, soit 75~points de pourcentage de moins que ResNet-50. Cela s'explique par l'incapacité des descripteurs à la main à généraliser aux variations intra-classe (illumination, pose). Curieusement, SIFT obtient un Rank-10 de 14,50\,\% mais un Rank-1 très faible (0,50\,\%), ce qui indique que ses correspondances correctes se situent généralement plus loin dans le classement. Le re-ranking am\'{e}liore le ResNet-50: la mAP gagne $+9,5$~pp (55,58 $\to$ 65,04), confirmant l'intérêt de la ré-estimation de voisinage k-réciproque.
+
+\subsection{WP4~: Ablation des stratégies de gel}
+
+\begin{table}[t]
+\centering
+\caption{Comparaison des trois strat\'{e}gies de gel sur Market-1501.}
+\label{tab:ablation}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lrrccc}
+\toprule
+Strat\'{e}gie & Params train. & \% & Rank-1 & mAP & Temps \\
+\midrule
+Feature Extraction  & 1,54M &  6,2 &  7,07 &  2,33 & ~9,9 min \\
+Partial Fine-Tuning & 23,6M & 94,2 & 83,43 & 62,11 & 21,7 min \\
+Full Fine-Tuning    & 25,0M & 100  & \textbf{85,36} & \textbf{66,33} & 28,4 min \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{results/ablation_loss_curves.png}
+  \caption{Courbes de perte pendant l'entra\^{\i}nement pour les trois strat\'{e}gies de gel. Le gel total du backbone (Feature Extraction) atteint un plancher bien sup\'{e}rieur aux deux autres strat\'{e}gies.}
+  \label{fig:ablation_loss}
+\end{figure}
+
+Les r\'{e}sultats du tableau~\ref{tab:ablation} et des courbes de figure~\ref{fig:ablation_loss} montrent clairement que le gel total du backbone est catastrophique pour le Re-ID~: les features ImageNet ne sont pas adapt\'{e}es \`{a} la discrimination fine d'identit\'{e}s, et les 1,54M de param\`{e}tres entra\^{\i}nables (BN-Neck + classifieur) sont insuffisants pour surmonter ce d\'{e}ficit. Le fine-tuning partiel r\'{e}cup\`{e}re l'essentiel de la performance ($+76$~pp par rapport au gel total) en lib\'{e}rant les couches hautes du r\'{e}seau. Le fine-tuning complet apporte un gain suppl\'{e}mentaire de $+1,93$~pp en Rank-1 et $+4,22$~pp en mAP, au prix de $+6,7$~min d'entra\^{\i}nement~-- un compromis favorable \'{e}tant donn\'{e} la disponibilit\'{e} d'un GPU.
+
+\subsection{WP5~: Comparaison architecturale ResNet-50 vs ViT}
+
+\begin{table}[t]
+\centering
+\caption{Comparaison CNN/Transformer sur Market-1501. La latence est mesur\'{e}e par image sur GPU.}
+\label{tab:arch_comparison}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lcc}
+\toprule
+M\'{e}trique & ResNet-50 & ViT-Base/16 \\
+\midrule
+Param\`{e}tres & 25,1M & 86,4M \\
+FLOPs & 4,05 G & 6,46 G \\
+Latence (ms/img) & 13,0 $\pm$ 0,6 & 10,7 $\pm$ 0,6 \\
+R\'{e}solution & $256\times128$ & $224\times224$ \\
+Dim. embedding & 2048 & 768 \\
+\midrule
+Rank-1 (\%) & 84,41 & \textbf{88,63} \\
+mAP (\%) & 64,47 & \textbf{73,84} \\
+Temps d'entra\^{\i}nement & $\sim$40 min & 47,9 min \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{results/architecture_cmc_curves.png}
+  \caption{Courbes CMC pour ResNet-50 et ViT-Base/16 sur Market-1501. ViT domaine \`{a} tous les rangs.}
+  \label{fig:cmc_curves}
+\end{figure}
+
+Comme le montrent le tableau~\ref{tab:arch_comparison} et la figure~\ref{fig:cmc_curves}, ViT-Base/16 surpasse ResNet-50 sur tous les crit\`{e}res de qualit\'{e} Re-ID~: Rank-1 $+4,2$~pp, Rank-5 $+2,1$~pp, mAP $+9,4$~pp. Paradoxalement, ViT est plus rapide \`{a} l'inf\'{e}rence (10,7\,ms vs 13,0\,ms), car la convolution large du r\'{e}seau est remplac\'{e}e par des op\'{e}rations matrice/vecteur efficacement parall\'{e}lisables sur GPU. En revanche, ViT est 3,45$\times$ plus volumineux (86,4M vs 25,1M param\`{e}tres) et n\'{e}cessite $\sim$20\,\% de temps d'entra\^{\i}nement suppl\'{e}mentaire. L'attention globale du Transformer lui permet de capturer des relations entre parties du corps spatialement distantes, ce qui se traduit par une meilleure s\'{e}paration inter-classe dans l'espace d'embedding.
+
+\subsection{WP6~: Adaptation de domaine}
+
+\paragraph{Gap de domaine.}
+Avant tout fine-tuning, nous mesurons le gap entre Market-1501 (source) et le dataset personnel (cible) \`{a} l'aide de la distance centra\^{\i}de ($d_c = 0{,}603$), la similarit\'{e} cosinus entre les centroids ($0{,}077$), et la MMD lin\'{e}aire ($0{,}367$). Ces indicateurs confirment un d\'{e}calage significatif entre les deux domaines, bien que les embeddings pr\'{e}-entra\^{\i}n\'{e}s se g\'{e}n\'{e}ralisent partiellement.
+
+\paragraph{R\'{e}sultats.}
+\begin{table}[t]
+\centering
+\caption{R\'{e}sultats d'adaptation de domaine (dataset cible~: personnel). La mAP est la m\'{e}trique principale en raison d'un artéfact d'\'{e}valuation sur un petit dataset (voir texte). Les Rank-1 et mAP du mod\`{e}le source sont mesur\'{e}s sur Market-1501.}
+\label{tab:domain_adaptation}
+\begin{tabular}{lcc}
+\toprule
+Exp\'{e}rience & Rank-1 & mAP \\
+\midrule
+Mod\`{e}le source (Market-1501)  & 84,41 & 64,47 \\
+Zero-Shot $\to$ Cible            & 100,00$^*$ & 78,27 \\
+Transfer Learning $\to$ Cible    & 100,00$^*$ & \textbf{89,93} \\
+\bottomrule
+\end{tabular}
+\vspace{2pt}
+\footnotesize{$^*$ Rank-1 satur\'{e}~: les images requ\^{e}tes \'{e}tant incluses dans la galerie, la correspondance exacte (sim.~= 1) est toujours retourn\'{e}e en premi\`{e}re position. La mAP (qui penalise le rang des \textit{autres} correspondances correctes) est plus repr\'{e}sentative.}
+\end{table}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{results/domain_gap_before_after.png}
+  \caption{Visualisation t-SNE du gap de domaine avant et apr\`{e}s adaptation. Apr\`{e}s transfer learning, les embeddings du domaine cible s'organisent en clusters d'identit\'{e} plus coh\'{e}rents.}
+  \label{fig:domain_gap}
+\end{figure}
+
+Le transfer learning (gel partiel, lr=$5 \times 10^{-5}$, 20~\'{e}poques, 131~images) am\'{e}liore la mAP de $+11,7$~pp (78,27~$\to$~89,93\,\%). Cela d\'{e}montre qu'un fine-tuning cibl\'{e} sur tr\`{e}s peu de donn\'{e}es (131~images) suffit \`{a} am\'{e}liorer sensiblement la discrimination d'identit\'{e} dans le domaine cible, m\^{e}me \`{a} partir d'un mod\`{e}le entra\^{\i}n\'{e} sur un domaine diff\'{e}rent.
+
+\subsection{WP7~: Clustering d'albums}
+
+\begin{table}[t]
+\centering
+\caption{R\'{e}sultats du clustering DBSCAN ($\varepsilon = 0{,}18$) pour l'indexation automatique d'albums.}
+\label{tab:clustering}
+\resizebox{\columnwidth}{!}{
+\begin{tabular}{lccc}
+\toprule
+Dataset & Puret\'{e} & Clusters & Imgs/cluster (moy.) \\
+\midrule
+Market-1501     & 88,95\,\% & 533 & 13,75 \\
+Dataset personnel & \textbf{94,80\,\%} & \multicolumn{2}{c}{(eps optimal $\varepsilon \approx 0{,}15$)} \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+La figure~\ref{fig:domain_gap} (à gauche, identités source) illustre qualitativement la structuration des embeddings en clusters. DBSCAN est fortement sensible au seuil $\varepsilon$~: pour $\varepsilon \leq 0{,}15$, le nombre de clusters explose (plus de 500 pour Market-1501) fragmentant les identités~; pour $\varepsilon \geq 0{,}35$, l'effet de cha\^{\i}nage fusionne des identit\'{e}s distinctes en un seul mega-cluster (9 albums pour Market-1501 dont un de 12,804 images). Le pic de NMI et d'ARI, visible sur l'analyse de sensibilité, se situe à $\varepsilon \approx 0{,}2$ pour Market-1501 et $\varepsilon \approx 0{,}15$ pour le dataset personnel.
+
+La pureté de 88,95\,\% sur Market-1501 (533~clusters, 13,75~images/cluster en moyenne, 191~images pour le plus grand) d\'{e}montre que les embeddings ResNet-50 capturent efficacement l'identit\'{e} plut\^{o}t que l'apparence brute~-- le syst\`{e}me g\`{e}re les changements de pose et de cam\'{e}ra. Sur le dataset personnel (262~images, identit\'{e}s connues), la pureté atteint 94,80\,\%, confirmant la robustesse des features appris sur Market-1501 \`{a} un domaine diff\'{e}rent.

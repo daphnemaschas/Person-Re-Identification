@@ -3,6 +3,7 @@ Training logic for Person Re-Identification.
 """
 import os
 import torch
+from torch.cuda.amp import GradScaler, autocast
 from tqdm import tqdm
 
 def train_one_epoch(model, loader, optimizer, criterion_xent, criterion_triplet, device, config):
@@ -20,6 +21,7 @@ def train_one_epoch(model, loader, optimizer, criterion_xent, criterion_triplet,
     """
     model.train()
     running_loss = 0.0
+    scaler = GradScaler(enabled=device.type == 'cuda')
     
     pbar = tqdm(loader, desc="Training")
     for images, labels, _ in pbar:
@@ -27,16 +29,16 @@ def train_one_epoch(model, loader, optimizer, criterion_xent, criterion_triplet,
         
         optimizer.zero_grad()
         
-        logits, features = model(images)
+        with autocast(enabled=device.type == 'cuda'):
+            logits, features = model(images)
+            loss_xent = criterion_xent(logits, labels)
+            loss_triplet = criterion_triplet(features, labels)
+            total_loss = (config['weight_xent'] * loss_xent +
+                          config['weight_triplet'] * loss_triplet)
         
-        loss_xent = criterion_xent(logits, labels)
-        loss_triplet = criterion_triplet(features, labels)
-        
-        total_loss = (config['weight_xent'] * loss_xent + 
-                      config['weight_triplet'] * loss_triplet)
-        
-        total_loss.backward()
-        optimizer.step()
+        scaler.scale(total_loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
         
         running_loss += total_loss.item()
         pbar.set_postfix({'loss': running_loss / (pbar.n + 1)})
@@ -44,12 +46,12 @@ def train_one_epoch(model, loader, optimizer, criterion_xent, criterion_triplet,
     return running_loss / len(loader)
 
 
-def train_model(model, train_loader, optimizer, scheduler, criterion_xent, criterion_triplet, device, config, num_epochs, output_dir):
+def train_model(model, train_loader, optimizer, scheduler, criterion_xent, criterion_triplet, device, config, num_epochs, output_dir, model_name='resnet50'):
     """
     Executes the full training loop.
     
     Args:
-        model: The ResNet50ReID model.
+        model: The Re-ID model (ResNet50 or ViTReID).
         train_loader: DataLoader for the training set.
         optimizer: Optimization algorithm (Adam).
         scheduler: Learning rate scheduler.
@@ -59,9 +61,11 @@ def train_model(model, train_loader, optimizer, scheduler, criterion_xent, crite
         config: Loss weights from YAML.
         num_epochs: Number of epochs to run.
         output_dir: Path to save the model weights.
+        model_name: Base name for checkpoint files (default: 'resnet50').
     """
     os.makedirs(output_dir, exist_ok=True)
     history = {'epoch': [], 'loss': [], 'lr': []}
+    scaler = GradScaler(enabled=device.type == 'cuda')
     
     for epoch in range(num_epochs):
         model.train()
@@ -74,16 +78,16 @@ def train_model(model, train_loader, optimizer, scheduler, criterion_xent, crite
             
             optimizer.zero_grad()
             
-            logits, features = model(images)
+            with autocast(enabled=device.type == 'cuda'):
+                logits, features = model(images)
+                loss_xent = criterion_xent(logits, labels)
+                loss_triplet = criterion_triplet(features, labels)
+                total_loss = (config['weight_xent'] * loss_xent +
+                              config['weight_triplet'] * loss_triplet)
             
-            loss_xent = criterion_xent(logits, labels)
-            loss_triplet = criterion_triplet(features, labels)
-            
-            total_loss = (config['weight_xent'] * loss_xent + 
-                          config['weight_triplet'] * loss_triplet)
-            
-            total_loss.backward()
-            optimizer.step()
+            scaler.scale(total_loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
             
             running_loss += total_loss.item()
             pbar.set_postfix({
@@ -98,7 +102,7 @@ def train_model(model, train_loader, optimizer, scheduler, criterion_xent, crite
 
         scheduler.step()
         
-        save_path = os.path.join(output_dir, f"resnet50_latest.pth")
+        save_path = os.path.join(output_dir, f"{model_name}_latest.pth")
         torch.save(model.state_dict(), save_path)
         
     print(f"\nTraining finished! Model saved in {output_dir}")

@@ -1,0 +1,39 @@
+% CVPR 2026 Paper Template
+
+\documentclass[10pt,twocolumn,letterpaper]{article}
+
+\usepackage[pagenumbers]{cvpr}
+
+% Import additional packages in the preamble file, before hyperref
+\input{preamble}
+
+\definecolor{cvprblue}{rgb}{0.21,0.49,0.74}
+\usepackage[pagebackref,breaklinks,colorlinks,allcolors=cvprblue]{hyperref}
+
+\def\paperID{*****}
+\def\confName{CVPR}
+\def\confYear{2026}
+
+\title{Ré-identification de Personnes~: Approches Classiques,\\
+Apprentissage Profond et Adaptation de Domaine}
+
+\author{
+Daphné Maschas \quad Adham Noureldin \quad Maxence Rossignol \\
+CentraleSupélec, Université Paris-Saclay \\
+{\tt\small \{daphne.maschas, adham.noureldin, maxence.rossignol\}@student-cs.fr}
+}
+
+\begin{document}
+\maketitle
+\input{sec/0_abstract}
+\input{sec/1_intro}
+\input{sec/2_related}
+\input{sec/3_methodology}
+\input{sec/4_evaluation}
+\input{sec/5_conclusion}
+{
+    \small
+    \bibliographystyle{ieeenat_fullname}
+    \bibliography{main}
+}
+\end{document}

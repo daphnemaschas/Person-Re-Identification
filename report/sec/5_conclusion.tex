@@ -1,0 +1,10 @@
+\section{Conclusions}
+\label{sec:conclusion}
+
+Ce travail présente une étude systématique de la chaîne complète de ré-identification de personnes, de la construction du jeu de données à l'indexation d'albums sans supervision.
+
+\paragraph{Synthèse des résultats.}
+(i) Les descripteurs classiques (HOG, couleur, SIFT) sont largement insuffisants pour le Re-ID (Rank-1 $< 2$\,\%), tandis que le re-ranking k-réciproque apporte un gain significatif de mAP ($+9,5$ pp) sur les embeddings profonds. (ii) L'ablation sur les stratégies de gel confirme que le gel total du backbone empeche toute adaptation discriminante: seul le fine-tuning complet (ou partiel au minimum) permet d'obtenir des performances viables. (iii) ViT-Base/16 surpasse ResNet-50 en qualié de classement (Rank-1 88,63\,\% vs 84,41\,\%) tout en étant legèrement plus rapide à l'inférence, malgré un budget paramétrique 3,45$\times$ plus élevé. (iv) Le transfer learning sur seulement 131~images du domaine cible améliore la mAP de 78,27\,\% à 89,93\,\%, illustrant la capacité du fine-tuning à combler rapidement un gap de domaine. (v) DBSCAN sur embeddings ResNet-50 permet une indexation automatique avec 88,95\,\% de pureté sur Market-1501 et 94,80\,\% sur le dataset personnel.
+
+\paragraph{Perspectives.}
+Plusieurs améliorations sont envisageables: (a) élargir le dataset personnel (actuellement 262 images) pour rendre l'évaluation de l'adaptation de domaine plus robuste et corriger l'artéfact d'évaluation query/galerie~; (b) explorer des méthodes d'adaptation de domaine sans supervision (UDA), évitant la nécessité d'annotations manuelles dans le domaine cible; (c) tester des architectures Re-ID plus spécialisées (TransReID~\cite{he2021transreid}, AGW~\cite{ye2021deep}) avec des mécanismes d'attention sur les parties du corps~; (d) intégrer un pipeline de clustering itératif avec pseudo-étiquettes pour un entraînement semi-supervisé dans le domaine cible.
